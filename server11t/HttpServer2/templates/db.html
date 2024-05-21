@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Users Table</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="input-group mb-3">
+            <input type="text" id="userIdInput" class="form-control" placeholder="Enter User ID">
+            <div class="input-group-append">
+                <button id="searchButton" class="btn btn-outline-secondary" type="button"><i class="fas fa-search"></i></button>
+            </div>
+        </div>
+        <div id="loadingSpinner" class="spinner-border text-secondary" style="display: none;"></div> <!-- The spinner -->
+        <table id="userTable" class="table table-bordered" style="display: none;">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody">
+            </tbody>
+        </table>
+    </div>
+    <script>
+        $(document).ready(function() {
+            function searchUser() {
+                $('#userTable').hide(); // hide the table
+                $('#loadingSpinner').show(); // show the spinner
+                let userId = $('#userIdInput').val();
+                let getUserCodePromise = $.get(`http://craftblocks.ddns.net:8009/getplayercode/${userId}`);
+                getUserCodePromise.done(function(serverResponse) {
+                    $('#userTableBody').empty();
+                    let uidToNamePromise = $.get(`http://craftblocks.ddns.net:8009/uidtoname/${userId}`);
+                    uidToNamePromise.done(function(userResponse) {
+                        let imageUrl = userResponse[1].data[0].imageUrl;  // get the imageUrl from the response
+                        let newUserRow = $(`<tr>
+                            <td><span class="userId"><b>${userId}</b></span> <span class="badge badge-primary"><img class="rounded-circle me-1" src="${imageUrl}" alt="User Image" height="20" width="20"> ${userResponse[0].name}</span></td>
+                            <td><button class="btn ` + (serverResponse.details == 'reedeem' ? 'btn-danger deleteUser' : 'btn-success addUser') + `" data-userId="${userId}">` + (serverResponse.details == 'reedeem' ? 'Delete' : 'Add') + `</button></td>
+                        </tr>`);
+                        $('#userTableBody').append(newUserRow);
+                    });
+                }).always(function() {
+                    // always hide the spinner and fade in the table, even if the request fails
+                    $('#loadingSpinner').hide();
+                    $('#userTable').fadeIn(600);
+                });
+            }
+
+            $('#userIdInput').on('keypress', function(e) {
+                if(e.which == 13) {
+                    searchUser();
+                }
+            });
+
+            $('#searchButton').on('click', function() {
+                searchUser();
+            });
+
+            $(document).on('click', '.deleteUser', function() {
+                let userId = $(this).closest('tr').find('.userId').text();
+                $.get(`http://craftblocks.ddns.net:8009/deleteuser/${userId}`, function(response) {
+                    $('#userTableBody').empty();
+                });
+            });
+
+            $(document).on('click', '.addUser', function() {
+                let userId = $(this).closest('tr').find('.userId').text();
+                $.get(`http://craftblocks.ddns.net:8009/adduser/${userId}`, function(response) {
+                    searchUser(); // Refresh the table
+                });
+            });
+        });
+    </script>
+</body>
+</html>
